@@ -25,6 +25,10 @@ namespace ngfem
       SetDimensions(Array<int>({2}));
     }
 
+    virtual Array<shared_ptr<CoefficientFunction>>
+    InputCoefficientFunctions() const override    {
+      return Array<shared_ptr<CoefficientFunction>>({mat});
+    }
 
     // evaluates for all points of the integration rule ir
     // the function is generated for the generic types T,
