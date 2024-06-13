@@ -75,6 +75,35 @@ namespace ngfem
           result(1,i) = 0.5*(a+c) - sqrt ( 0.25*(a-c)*(a-c) + b*b );
         }
     }
+
+    shared_ptr<CoefficientFunction> 
+    Diff(const CoefficientFunction * var,
+	 shared_ptr<CoefficientFunction> dir) const  {
+      
+      auto a = MakeComponentCoefficientFunction(mat, 0);
+      auto b = MakeComponentCoefficientFunction(mat, 1);
+      auto c = MakeComponentCoefficientFunction(mat, 3);
+      auto thisptr = const_pointer_cast<CoefficientFunction>
+	(this->shared_from_this());
+      auto ew0 = MakeComponentCoefficientFunction(thisptr, 0);
+      auto ew1 = MakeComponentCoefficientFunction(thisptr, 1);
+
+      Array<shared_ptr<CoefficientFunction>> lam({ew0, ew1});
+      Array<shared_ptr<CoefficientFunction>> dlam(2 * var->Dimension());
+      
+      for (int i=0, k=0; i < 2; i++)
+	for (int j = 0; j < var->Dimension(); j++) {
+	  auto dr = 2*lam[i] - (a+c);
+	  auto coeffda = (lam[i] - c) / dr;
+	  auto coeffdb = 2*b / dr;
+	  auto coeffdc = (lam[i] - a) / dr;
+	  dlam[k++] = coeffda * a->Diff(var, dir) + coeffdb * b->Diff(var, dir)
+	    + coeffdc * c->Diff(var, dir);	    
+	}
+
+      return  MakeVectorialCoefficientFunction(std::move(dlam));	    
+    }
+
   };
 }
 
