@@ -87,42 +87,37 @@ namespace ngfem
         }
     }
 
-    
-    // Compute the derivative of the eigenvalues by 
-    //
-    // d lam = ((lam-c) * da + (lam-a) * dc + 2b * db) / (2*lam - (a+c))
-    //
-    // where d is the derivative with respect to some given "var" variables.
-    // Since lam is R^2-valued, its Frechet derivative is also R^2-valued.
-    // Both dir and var should be in the same vector space.
+
+    // Compute the directional derivative of eigenvalues with respect
+    // to a node "var" in the tree of expressions definining the
+    // matrix coefficient function. Both "var" and "dir" should be of
+    // the same dimensions.
     
     shared_ptr<CoefficientFunction> 
     Diff(const CoefficientFunction * var,
 	 const shared_ptr<CoefficientFunction> dir) const override {
-      
-      auto a = MakeComponentCoefficientFunction(mat, 0);
-      auto b = MakeComponentCoefficientFunction(mat, 1);
-      auto c = MakeComponentCoefficientFunction(mat, 3);
+
+      // Compute the derivative of the eigenvalues by
+      // 
+      //       d lam = cof(lam - A) : d A  / trace(cof(lam - A))
+      //
+      // where A = [[a, b], [b, c]].  This formula is derived by implicit
+      // differentiation of the eigenvalue equation det(lam - A) = 0.
+
       auto thisptr = const_pointer_cast<CoefficientFunction>
 	(this->shared_from_this());
-      Array<shared_ptr<CoefficientFunction>> lam(2);
-      lam[0] = MakeComponentCoefficientFunction(thisptr, 0);
-      lam[1] = MakeComponentCoefficientFunction(thisptr, 1);
       Array<shared_ptr<CoefficientFunction>> dlam(2);
-      for (int i=0; i < 2; i++) {
-	auto dr = 2*lam[i] - (a+c);
-	auto coeffda = (lam[i] - c) / dr;
-	auto coeffdb = 2*b / dr;
-	auto coeffdc = (lam[i] - a) / dr;
-	dlam[i] =
-	  coeffda * a->Diff(var, dir) + 
-	  coeffdb * b->Diff(var, dir) + 
-	  coeffdc * c->Diff(var, dir);	
-      }
-    
-    return  MakeVectorialCoefficientFunction(std::move(dlam));	    
-    }
 
+      for (int i=0; i < 2; i++) {  // for each eigenvalue, compute its derivative
+	auto lam = MakeComponentCoefficientFunction(thisptr, i);
+	auto cof = CofactorCF(mat - lam * IdentityCF(2));
+	auto dA = mat->Diff(var, dir);
+	auto tr = TraceCF(cof);
+	dlam[i] = InnerProduct(cof, dA) / tr;	  
+      }      
+      return  MakeVectorialCoefficientFunction(std::move(dlam));	    
+    }
+    
   };
 }
 
