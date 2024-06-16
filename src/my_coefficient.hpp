@@ -11,13 +11,22 @@ namespace ngfem
     CoefficientFunction which computes the eigenvalues of
     a symmetric 2x2 matrix-valued CoefficientFunction
   */
+  
   class EigH_CF : public T_CoefficientFunction<EigH_CF>
   {
     shared_ptr<CoefficientFunction> mat;
   public:
+
+    // Input mat = [[a, b],
+    //              [b, c]],
+    // symmetric real valued matrix, where a, b, c are ngsolve CF.
+    // This EigH_CF then evaluates  a 2-vector containing the two real
+    // eigenvalues of mat.      
+    
     EigH_CF(shared_ptr<CoefficientFunction> _mat)
       : mat(_mat)
     {
+
       if (_mat->Dimensions() != Array<int> ({ 2, 2}))
         throw Exception("input must be a 2x2 matrix CF");
 
@@ -30,10 +39,10 @@ namespace ngfem
       return Array<shared_ptr<CoefficientFunction>>({mat});
     }
 
-    // evaluates for all points of the integration rule ir
-    // the function is generated for the generic types T,
-    // and will be instantiated for 
-    // double, complex, AutoDiff, SIMD<double>, ...
+    // Evaluates this CF for all points of input integration rule ir.
+    // The function is generated for the generic types T,
+    // and will be instantiated for double, complex, AutoDiff, SIMD<double>, ...
+    
     template <typename MIR, typename T, ORDERING ORD>
     void T_Evaluate (const MIR & ir,
                      BareSliceMatrix<T,ORD> result) const
@@ -52,13 +61,15 @@ namespace ngfem
           T b = temp(1,i);
           T c = temp(3,i);
 
+	  // These are the two eigenvalues of the matrix:
           result(0,i) = 0.5*(a+c) + sqrt ( 0.25*(a-c)*(a-c) + b*b );
           result(1,i) = 0.5*(a+c) - sqrt ( 0.25*(a-c)*(a-c) + b*b );
         }
     }
 
-    // evaluates for all points of an integration rule
-    // the input values are provided by caller
+    // Evaluate for all points of an integration rule.
+    // The matrix is provided by caller.
+    
     template <typename MIR, typename T, ORDERING ORD>
     void T_Evaluate (const MIR & ir,
                      FlatArray<BareSliceMatrix<T,ORD>> input,                       
@@ -76,32 +87,40 @@ namespace ngfem
         }
     }
 
+    
+    // Compute the derivative of the eigenvalues by 
+    //
+    // d lam = ((lam-c) * da + (lam-a) * dc + 2b * db) / (2*lam - (a+c))
+    //
+    // where d is the derivative with respect to some given "var" variables.
+    // Since lam is R^2-valued, its Frechet derivative is also R^2-valued.
+    // Both dir and var should be in the same vector space.
+    
     shared_ptr<CoefficientFunction> 
     Diff(const CoefficientFunction * var,
-	 shared_ptr<CoefficientFunction> dir) const  {
+	 const shared_ptr<CoefficientFunction> dir) const override {
       
       auto a = MakeComponentCoefficientFunction(mat, 0);
       auto b = MakeComponentCoefficientFunction(mat, 1);
       auto c = MakeComponentCoefficientFunction(mat, 3);
       auto thisptr = const_pointer_cast<CoefficientFunction>
 	(this->shared_from_this());
-      auto ew0 = MakeComponentCoefficientFunction(thisptr, 0);
-      auto ew1 = MakeComponentCoefficientFunction(thisptr, 1);
-
-      Array<shared_ptr<CoefficientFunction>> lam({ew0, ew1});
-      Array<shared_ptr<CoefficientFunction>> dlam(2 * var->Dimension());
-      
-      for (int i=0, k=0; i < 2; i++)
-	for (int j = 0; j < var->Dimension(); j++) {
-	  auto dr = 2*lam[i] - (a+c);
-	  auto coeffda = (lam[i] - c) / dr;
-	  auto coeffdb = 2*b / dr;
-	  auto coeffdc = (lam[i] - a) / dr;
-	  dlam[k++] = coeffda * a->Diff(var, dir) + coeffdb * b->Diff(var, dir)
-	    + coeffdc * c->Diff(var, dir);	    
-	}
-
-      return  MakeVectorialCoefficientFunction(std::move(dlam));	    
+      Array<shared_ptr<CoefficientFunction>> lam(2);
+      lam[0] = MakeComponentCoefficientFunction(thisptr, 0);
+      lam[1] = MakeComponentCoefficientFunction(thisptr, 1);
+      Array<shared_ptr<CoefficientFunction>> dlam(2);
+      for (int i=0; i < 2; i++) {
+	auto dr = 2*lam[i] - (a+c);
+	auto coeffda = (lam[i] - c) / dr;
+	auto coeffdb = 2*b / dr;
+	auto coeffdc = (lam[i] - a) / dr;
+	dlam[i] =
+	  coeffda * a->Diff(var, dir) + 
+	  coeffdb * b->Diff(var, dir) + 
+	  coeffdc * c->Diff(var, dir);	
+      }
+    
+    return  MakeVectorialCoefficientFunction(std::move(dlam));	    
     }
 
   };
