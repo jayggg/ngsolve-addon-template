@@ -10,8 +10,8 @@ namespace ngcomp {
 }
 
 
-PYBIND11_MODULE(ngsolve_addon_template, m) {
-  cout << "Loading ngsolve_addon_template" << endl;
+PYBIND11_MODULE(ngsolve_addon_template_withdiff, m) {
+  cout << "Loading ngsolve_addon_template_withdiff" << endl;
   m.def("my_function", &my_function, "A simple function", py::arg("x") = 1.0);
 
 

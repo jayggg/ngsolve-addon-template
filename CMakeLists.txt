@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # change this to your desired addon name
 # make sure, that the name matches exactly the argument of PYBIND11_MODULE()
-set(addon_name ngsolve_addon_template)
+set(addon_name ngsolve_addon_template_withdiff)
 
 project(${addon_name})
 include(ngsolve_addon.cmake)

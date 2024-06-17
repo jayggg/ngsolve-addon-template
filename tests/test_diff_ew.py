@@ -1,6 +1,6 @@
 from ngsolve import CF, Mesh, x, y, sqrt, Integrate
 from netgen.geom2d import unit_square
-import ngsolve_addon_template as addon
+import ngsolve_addon_template_withdiff as addon
 
 mesh = Mesh(unit_square.GenerateMesh(maxh=0.2))
 func = CF((1, y,
